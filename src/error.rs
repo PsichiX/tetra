@@ -8,9 +8,6 @@ use std::result;
 
 use image::ImageError;
 
-#[cfg(feature = "audio")]
-use rodio::decoder::DecoderError;
-
 /// A specialized [`Result`](std::result::Result) type for Tetra.
 ///
 /// All Tetra functions with a recoverable failure condition will return this type.
@@ -47,10 +44,6 @@ pub enum TetraError {
     /// Returned when a font could not be read.
     InvalidFont,
 
-    /// Returned when a sound cannot be decoded.
-    #[cfg(feature = "audio")]
-    InvalidSound(DecoderError),
-
     /// Returned when not enough data is provided to fill a buffer.
     /// This may happen if you're creating a texture from raw data and you don't provide
     /// enough data.
@@ -81,8 +74,6 @@ impl Display for TetraError {
             TetraError::InvalidTexture(_) => write!(f, "Invalid texture data"),
             TetraError::InvalidShader(_) => write!(f, "Invalid shader source"),
             TetraError::InvalidFont => write!(f, "Invalid font data"),
-            #[cfg(feature = "audio")]
-            TetraError::InvalidSound(_) => write!(f, "Invalid sound data"),
             TetraError::NotEnoughData { expected, actual } => write!(
                 f,
                 "Not enough data was provided to fill a buffer - expected {}, found {}.",
@@ -103,8 +94,6 @@ impl Error for TetraError {
             TetraError::InvalidTexture(reason) => Some(reason),
             TetraError::InvalidShader(_) => None,
             TetraError::InvalidFont => None,
-            #[cfg(feature = "audio")]
-            TetraError::InvalidSound(reason) => Some(reason),
             TetraError::NotEnoughData { .. } => None,
             TetraError::NoAudioDevice => None,
             TetraError::FailedToChangeDisplayMode(_) => None,
