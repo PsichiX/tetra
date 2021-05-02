@@ -590,3 +590,42 @@ impl Default for BlendAlphaMode {
         BlendAlphaMode::Multiply
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StencilAction {
+    Replace(u8),
+    Increment,
+    Decrement,
+    IncrementWrap,
+    DecrementWrap,
+    Invert,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StencilFunction {
+    Never,
+    LessThan(i32),
+    LessThanOrEqualTo(i32),
+    EqualTo(i32),
+    NotEqualTo(i32),
+    GreaterThan(i32),
+    GreaterThanOrEqualTo(i32),
+    Always,
+}
+
+impl StencilFunction {
+    pub(crate) fn to_gl_params(self) -> (u32, i32) {
+        match self {
+            StencilFunction::Never => (glow::NEVER, 0),
+            StencilFunction::LessThan(reference_value) => (glow::LESS, reference_value),
+            StencilFunction::LessThanOrEqualTo(reference_value) => (glow::LEQUAL, reference_value),
+            StencilFunction::EqualTo(reference_value) => (glow::EQUAL, reference_value),
+            StencilFunction::NotEqualTo(reference_value) => (glow::NOTEQUAL, reference_value),
+            StencilFunction::GreaterThan(reference_value) => (glow::GREATER, reference_value),
+            StencilFunction::GreaterThanOrEqualTo(reference_value) => {
+                (glow::GEQUAL, reference_value)
+            }
+            StencilFunction::Always => (glow::ALWAYS, 0),
+        }
+    }
+}
