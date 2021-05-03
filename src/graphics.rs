@@ -77,6 +77,8 @@ pub(crate) struct GraphicsContext {
     element_count: usize,
 
     blend_mode: BlendMode,
+
+    stencil_function: StencilFunction,
 }
 
 impl GraphicsContext {
@@ -130,6 +132,8 @@ impl GraphicsContext {
             element_count: 0,
 
             blend_mode: BlendMode::default(),
+
+            stencil_function: Default::default(),
         })
     }
 }
@@ -509,6 +513,28 @@ pub fn reset_scissor(ctx: &mut Context) {
     ctx.device.scissor_test(false);
 }
 
+pub fn stencil<R>(
+    ctx: &mut Context,
+    action: StencilAction,
+    mut f: impl FnMut(&mut Context) -> R,
+) -> R {
+    flush(ctx);
+    ctx.device.clear_stencil();
+    ctx.device.start_stencil(action);
+    let result = f(ctx);
+    flush(ctx);
+    ctx.device.finish_stencil();
+    result
+}
+
+pub fn set_stencil_test(ctx: &mut Context, function: StencilFunction) {
+    if ctx.graphics.stencil_function == function {
+        return;
+    }
+    flush(ctx);
+    ctx.device.set_stencil_function(function);
+}
+
 pub(crate) fn set_viewport_size(ctx: &mut Context) {
     if let ActiveCanvas::Window = ctx.graphics.canvas {
         let (width, height) = window::get_size(ctx);
@@ -593,12 +619,32 @@ impl Default for BlendAlphaMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StencilAction {
-    Replace(u8),
+    Replace(i32),
     Increment,
     Decrement,
     IncrementWrap,
     DecrementWrap,
     Invert,
+}
+
+impl StencilAction {
+    pub(crate) fn reference(&self) -> i32 {
+        match self {
+            StencilAction::Replace(reference_value) => *reference_value,
+            _ => 0,
+        }
+    }
+
+    pub(crate) fn gl_action(&self) -> u32 {
+        match self {
+            StencilAction::Replace(_) => glow::REPLACE,
+            StencilAction::Increment => glow::INCR,
+            StencilAction::Decrement => glow::DECR,
+            StencilAction::IncrementWrap => glow::INCR_WRAP,
+            StencilAction::DecrementWrap => glow::DECR_WRAP,
+            StencilAction::Invert => glow::INVERT,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -627,5 +673,11 @@ impl StencilFunction {
             }
             StencilFunction::Always => (glow::ALWAYS, 0),
         }
+    }
+}
+
+impl Default for StencilFunction {
+    fn default() -> Self {
+        Self::Always
     }
 }

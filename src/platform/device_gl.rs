@@ -3,10 +3,16 @@ use std::rc::Rc;
 
 use glow::{Context as GlowContext, HasContext, PixelPackData, PixelUnpackData};
 
-use crate::error::{Result, TetraError};
-use crate::graphics::mesh::{BufferUsage, Vertex, VertexWinding};
+use crate::graphics::{
+    mesh::{BufferUsage, Vertex, VertexWinding},
+    StencilFunction,
+};
 use crate::graphics::{BlendAlphaMode, BlendMode, FilterMode, GraphicsDeviceInfo};
 use crate::math::{Mat2, Mat3, Mat4, Vec2, Vec3, Vec4};
+use crate::{
+    error::{Result, TetraError},
+    graphics::StencilAction,
+};
 
 type BufferId = <GlowContext as HasContext>::Buffer;
 type ProgramId = <GlowContext as HasContext>::Program;
@@ -29,6 +35,7 @@ struct GraphicsState {
     current_draw_framebuffer: Cell<Option<FramebufferId>>,
     current_renderbuffer: Cell<Option<RenderbufferId>>,
     current_vertex_array: Cell<Option<VertexArrayId>>,
+    current_stencil_function: Cell<StencilFunction>,
 }
 
 pub struct GraphicsDevice {
@@ -40,6 +47,7 @@ impl GraphicsDevice {
         unsafe {
             gl.enable(glow::CULL_FACE);
             gl.enable(glow::BLEND);
+            gl.enable(glow::STENCIL_TEST);
 
             gl.blend_func_separate(
                 glow::SRC_ALPHA,
@@ -73,6 +81,7 @@ impl GraphicsDevice {
                 current_draw_framebuffer: Cell::new(None),
                 current_renderbuffer: Cell::new(None),
                 current_vertex_array: Cell::new(Some(current_vertex_array)),
+                current_stencil_function: Cell::new(StencilFunction::Always),
             };
 
             Ok(GraphicsDevice {
@@ -99,6 +108,7 @@ impl GraphicsDevice {
         unsafe {
             self.state.gl.clear_color(r, g, b, a);
             self.state.gl.clear(glow::COLOR_BUFFER_BIT);
+            self.state.gl.clear(glow::STENCIL_BUFFER_BIT);
         }
     }
 
@@ -129,6 +139,41 @@ impl GraphicsDevice {
             } else {
                 self.state.gl.disable(glow::SCISSOR_TEST);
             }
+        }
+    }
+
+    pub fn start_stencil(&mut self, action: StencilAction) {
+        unsafe {
+            self.state
+                .gl
+                .stencil_func(glow::ALWAYS, action.reference(), 0xFFFFFFFF);
+            self.state
+                .gl
+                .stencil_op(glow::KEEP, glow::KEEP, action.gl_action());
+            self.state.gl.color_mask(false, false, false, false);
+        }
+    }
+
+    pub fn finish_stencil(&mut self) {
+        unsafe {
+            let (func, reference) = self.state.current_stencil_function.get().to_gl_params();
+            self.state.gl.stencil_func(func, reference, 0xFFFFFFFF);
+            self.state.gl.stencil_op(glow::KEEP, glow::KEEP, glow::KEEP);
+            self.state.gl.color_mask(true, true, true, true);
+        }
+    }
+
+    pub fn clear_stencil(&mut self) {
+        unsafe {
+            self.state.gl.clear(glow::STENCIL_BUFFER_BIT);
+        }
+    }
+
+    pub fn set_stencil_function(&mut self, function: StencilFunction) {
+        self.state.current_stencil_function.replace(function);
+        let (func, reference) = function.to_gl_params();
+        unsafe {
+            self.state.gl.stencil_func(func, reference, 0xFFFFFFFF);
         }
     }
 
