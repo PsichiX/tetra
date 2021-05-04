@@ -146,10 +146,11 @@ impl GraphicsDevice {
         unsafe {
             self.state
                 .gl
-                .stencil_func(glow::ALWAYS, action.reference(), 0xFFFFFFFF);
+                .stencil_op(glow::KEEP, glow::KEEP, action.gl_action());
             self.state
                 .gl
-                .stencil_op(glow::KEEP, glow::KEEP, action.gl_action());
+                .stencil_func(glow::ALWAYS, action.reference(), 0xFFFFFFFF);
+            self.state.gl.stencil_mask(0xFFFFFFFF);
             self.state.gl.color_mask(false, false, false, false);
         }
     }
@@ -157,8 +158,9 @@ impl GraphicsDevice {
     pub fn finish_stencil(&mut self) {
         unsafe {
             let (func, reference) = self.state.current_stencil_function.get().to_gl_params();
-            self.state.gl.stencil_func(func, reference, 0xFFFFFFFF);
             self.state.gl.stencil_op(glow::KEEP, glow::KEEP, glow::KEEP);
+            self.state.gl.stencil_func(func, reference, 0xFFFFFFFF);
+            self.state.gl.stencil_mask(0);
             self.state.gl.color_mask(true, true, true, true);
         }
     }

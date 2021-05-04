@@ -528,9 +528,6 @@ pub fn stencil<R>(
 }
 
 pub fn set_stencil_test(ctx: &mut Context, function: StencilFunction) {
-    if ctx.graphics.stencil_function == function {
-        return;
-    }
     flush(ctx);
     ctx.device.set_stencil_function(function);
 }
